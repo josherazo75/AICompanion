@@ -15,12 +15,12 @@ export function ChatMessages({ messages, isLoading, error }: ChatMessagesProps) 
 
   // Scroll to bottom when messages change or when loading state changes
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    messagesEndRef.current?.scrollIntoView({ behavior: "auto" });
   }, [messages, isLoading]);
 
   return (
     <div className="flex-1 overflow-hidden">
-      <div className="h-full overflow-y-auto p-4 space-y-4">
+        <div className="h-full overflow-y-auto p-2 sm:p-4 space-y-3">
         {messages.map((message) => (
           <MessageItem key={message.id} message={message} />
         ))}

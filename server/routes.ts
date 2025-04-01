@@ -4,10 +4,9 @@ import { storage } from "./storage";
 import { z } from "zod";
 import { insertMessageSchema } from "@shared/schema";
 import { generateChatResponse } from "./openai";
+import crypto from "crypto";
 
 export async function registerRoutes(app: Express): Promise<Server> {
-  // prefix all routes with /api
-  
   // Get all messages for a conversation
   app.get("/api/messages", async (req, res) => {
     try {
@@ -23,41 +22,43 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Create a new message and get AI response
   app.post("/api/messages", async (req, res) => {
     try {
+      // Add a fallback for conversationId
+      if (!req.body.conversationId) {
+        req.body.conversationId = crypto.randomUUID();
+      }
+
       // Validate request body
       const messageData = insertMessageSchema.parse(req.body);
-      
+
       // Store user message
       const userMessage = await storage.createMessage(messageData);
-      
+
       // Get conversation history for context
-      const conversationId = await storage.getOrCreateConversationId();
-      const messageHistory = await storage.getMessages(conversationId);
-      
+      const messageHistory = await storage.getMessages(req.body.conversationId);
+
       // Format messages for OpenAI
       const openaiMessages = messageHistory.map(msg => ({
         role: msg.role as "user" | "assistant" | "system",
         content: msg.content
       }));
-      
+
       try {
         // Generate AI response
         const aiResponseContent = await generateChatResponse(openaiMessages);
-        
+
         // Store AI response
         const aiMessage = await storage.createMessage({
           content: aiResponseContent,
           role: "assistant",
-          conversationId
+          conversationId: req.body.conversationId
         });
-        
+
         // Return both messages
         res.status(201).json({
           userMessage,
           aiMessage
         });
       } catch (aiError) {
-        // If AI generation fails, still return the user message
-        // but with an error for the AI response
         console.error("Error with AI response:", aiError);
         res.status(201).json({
           userMessage,
@@ -85,6 +86,5 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   const httpServer = createServer(app);
-
   return httpServer;
 }

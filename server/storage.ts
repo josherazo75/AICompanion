@@ -1,81 +1,60 @@
-import { messages, type Message, type InsertMessage } from "@shared/schema";
+import { Message, InsertMessage } from "@shared/schema";
 import { randomUUID } from "crypto";
+import db from "./db";
 
-// modify the interface with any CRUD methods
-// you might need
-
-export interface IStorage {
-  getUser(id: number): Promise<User | undefined>;
-  getUserByUsername(username: string): Promise<User | undefined>;
-  createUser(user: InsertUser): Promise<User>;
-  getMessages(conversationId: string): Promise<Message[]>;
-  getMessage(id: number): Promise<Message | undefined>;
-  createMessage(message: InsertMessage): Promise<Message>;
-  getOrCreateConversationId(): Promise<string>;
-}
-
-export class MemStorage implements IStorage {
-  private users: Map<number, User>;
-  private messages: Map<number, Message>;
-  private currentUserId: number;
-  private currentMessageId: number;
-  private conversationId: string | null;
-
-  constructor() {
-    this.users = new Map();
-    this.messages = new Map();
-    this.currentUserId = 1;
-    this.currentMessageId = 1;
-    this.conversationId = null;
-  }
-
-  async getUser(id: number): Promise<User | undefined> {
-    return this.users.get(id);
-  }
-
-  async getUserByUsername(username: string): Promise<User | undefined> {
-    return Array.from(this.users.values()).find(
-      (user) => user.username === username,
-    );
-  }
-
-  async createUser(insertUser: InsertUser): Promise<User> {
-    const id = this.currentUserId++;
-    const user: User = { ...insertUser, id };
-    this.users.set(id, user);
-    return user;
-  }
-
+export class SQLiteStorage {
   async getMessages(conversationId: string): Promise<Message[]> {
-    return Array.from(this.messages.values())
-      .filter((message) => message.conversationId === conversationId)
-      .sort((a, b) => {
-        if (!a.createdAt || !b.createdAt) return 0;
-        return a.createdAt.getTime() - b.createdAt.getTime();
-      });
+    const rows = db
+      .prepare(
+        `SELECT * FROM messages WHERE conversationId = ? ORDER BY datetime(createdAt)`,
+      )
+      .all(conversationId);
+
+    return rows.map((row) => ({
+      id: row.id,
+      role: row.role,
+      content: row.content,
+      conversationId: row.conversationId,
+      createdAt: new Date(row.createdAt),
+    }));
   }
 
-  async getMessage(id: number): Promise<Message | undefined> {
-    return this.messages.get(id);
-  }
+  async getMessage(id: string): Promise<Message | undefined> {
+    const row = db.prepare(`SELECT * FROM messages WHERE id = ?`).get(id);
 
-  async createMessage(insertMessage: InsertMessage): Promise<Message> {
-    const id = this.currentMessageId++;
-    const message: Message = { 
-      ...insertMessage, 
-      id, 
-      createdAt: new Date() 
+    if (!row) return undefined;
+
+    return {
+      id: row.id,
+      role: row.role,
+      content: row.content,
+      conversationId: row.conversationId,
+      createdAt: new Date(row.createdAt),
     };
-    this.messages.set(id, message);
-    return message;
+  }
+
+  async createMessage(message: InsertMessage): Promise<Message> {
+    const id = randomUUID();
+    const createdAt = new Date().toISOString();
+
+    db.prepare(
+      `
+      INSERT INTO messages (id, role, content, conversationId, createdAt)
+      VALUES (?, ?, ?, ?, ?)
+    `,
+    ).run(id, message.role, message.content, message.conversationId, createdAt);
+
+    return {
+      id,
+      ...message,
+      createdAt: new Date(createdAt),
+    };
   }
 
   async getOrCreateConversationId(): Promise<string> {
-    if (!this.conversationId) {
-      this.conversationId = randomUUID();
-    }
-    return this.conversationId;
+    // This can be improved later to support multiple users/sessions.
+    return "default";
   }
 }
 
-export const storage = new MemStorage();
+export const storage = new SQLiteStorage();

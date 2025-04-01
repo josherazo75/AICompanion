@@ -9,33 +9,34 @@ interface MessageItemProps {
 export function MessageItem({ message }: MessageItemProps) {
   const isUserMessage = message.role === "user";
 
-  // Function to convert links to clickable elements and line breaks to <br>
+  // Convert links and newlines
   const formatContent = (content: string) => {
-    // Replace URLs with clickable links
     const urlRegex = /(https?:\/\/[^\s]+)/g;
     const textWithLinks = content.replace(urlRegex, (url) => {
       return `<a href="${url}" target="_blank" rel="noopener noreferrer" class="text-blue-600 hover:underline">${url}</a>`;
     });
-
-    // Replace newlines with <br>
-    const textWithBreaks = textWithLinks.replace(/\n/g, '<br>');
-    
-    return <p className="text-gray-800" dangerouslySetInnerHTML={{ __html: textWithBreaks }} />;
+    const textWithBreaks = textWithLinks.replace(/\n/g, "<br>");
+    return (
+      <p
+        className="text-gray-800"
+        dangerouslySetInnerHTML={{ __html: textWithBreaks }}
+      />
+    );
   };
 
-  // Format lists in AI responses
+  // Convert bullet lists
   const formatList = (content: string) => {
-    if (!content.includes('\n- ') && !content.includes('\n* ')) {
+    if (!content.includes("\n- ") && !content.includes("\n* ")) {
       return formatContent(content);
     }
 
-    const lines = content.split('\n');
+    const lines = content.split("\n");
     const formattedContent = [];
     let inList = false;
     let listItems: string[] = [];
 
     lines.forEach((line, index) => {
-      if (line.trim().startsWith('- ') || line.trim().startsWith('* ')) {
+      if (line.trim().startsWith("- ") || line.trim().startsWith("* ")) {
         if (!inList) {
           inList = true;
           listItems = [];
@@ -58,7 +59,6 @@ export function MessageItem({ message }: MessageItemProps) {
       }
     });
 
-    // Add any remaining list items
     if (inList) {
       formattedContent.push(
         <ul key="list-end" className="list-disc pl-5 mt-1 space-y-1">
@@ -73,23 +73,33 @@ export function MessageItem({ message }: MessageItemProps) {
   };
 
   return (
-    <div className={cn("flex items-start", isUserMessage && "justify-end")}>
+    <div className={cn("flex items-end", isUserMessage ? "justify-end" : "justify-start")}>
       {!isUserMessage && (
-        <div className="w-8 h-8 rounded-full bg-primary flex-shrink-0 flex items-center justify-center">
+        <div className="w-8 h-8 rounded-full bg-primary flex items-center justify-center mr-2">
           <Cpu className="h-5 w-5 text-white" />
         </div>
       )}
-      <div 
+
+      <div
         className={cn(
-          "py-2 px-3 max-w-[85%] rounded-lg", 
-          isUserMessage ? "mr-2 bg-secondary" : "ml-2 bg-primary-light"
+          "rounded-xl px-4 py-2 shadow",
+          "max-w-[90%] sm:max-w-[70%]", // 👈 responsive width
+          isUserMessage ? "bg-gray-200 text-gray-900" : "bg-primary-light text-black"
         )}
       >
         {isUserMessage ? formatContent(message.content) : formatList(message.content)}
+
+        <p className="text-xs text-right text-gray-500 mt-1">
+          {new Date(message.createdAt).toLocaleTimeString([], {
+            hour: "2-digit",
+            minute: "2-digit",
+          })}
+        </p>
       </div>
+
       {isUserMessage && (
-        <div className="w-8 h-8 rounded-full bg-gray-300 flex-shrink-0 flex items-center justify-center">
-          <User className="h-5 w-5 text-gray-500" />
+        <div className="w-8 h-8 rounded-full bg-gray-300 flex items-center justify-center ml-2">
+          <User className="h-5 w-5 text-gray-600" />
         </div>
       )}
     </div>

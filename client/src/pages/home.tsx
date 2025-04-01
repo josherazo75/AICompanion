@@ -33,9 +33,14 @@ export default function Home() {
     isLoading: isLoadingMessages,
     error: messagesError
   } = useQuery({
-    queryKey: ['/api/messages'],
+    queryKey: ['/api/messages', conversationId],
     enabled: !!conversationId,
+    queryFn: async () => {
+      const response = await apiRequest("GET", "/api/messages");
+      return response.json();
+    },
   });
+
 
   // Send message mutation
   const { 
@@ -51,10 +56,15 @@ export default function Home() {
       });
       return response.json();
     },
-    onSuccess: () => {
-      // Invalidate messages query to refresh the messages
-      queryClient.invalidateQueries({ queryKey: ['/api/messages'] });
+    onSuccess: ({ userMessage, aiMessage }) => {
+      queryClient.setQueryData(['/api/messages', conversationId], (old: Message[] = []) => [
+        ...old,
+        userMessage,
+        aiMessage,
+      ]);
     },
+
+
     onError: (error) => {
       toast({
         title: "Error",
@@ -84,21 +94,23 @@ export default function Home() {
     : null;
 
   return (
-    <div className="h-screen flex flex-col">
+    <div className="flex flex-col h-screen max-w-full">
       <ChatHeader />
-      
-      <div className="chat-container flex-1 overflow-hidden">
+
+      <div className="flex-1 overflow-y-auto">
         <ChatMessages 
           messages={messages} 
           isLoading={isSending} 
           error={error} 
         />
       </div>
-      
-      <ChatInput 
-        onSendMessage={handleSendMessage} 
-        isLoading={isSending} 
-      />
+
+      <div className="px-2 pb-4 sm:px-4">
+        <ChatInput 
+          onSendMessage={handleSendMessage} 
+          isLoading={isSending} 
+        />
+      </div>
     </div>
   );
 }
