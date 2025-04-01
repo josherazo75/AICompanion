@@ -1,0 +1,6 @@
+openai
+better-sqlite3
+franc
+langs
+express
+cors
