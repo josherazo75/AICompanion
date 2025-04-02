@@ -1,6 +1,6 @@
 const fetch = require("node-fetch");
 const express = require("express");
-const { generateChatResponse } = require("./openai");
+const { generateChatResponse } = require("./server/openai");
 const app = express();
 const PORT = process.env.PORT || 3000;
 
