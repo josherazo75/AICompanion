@@ -7,7 +7,28 @@ import { generateChatResponse } from "./openai";
 import crypto from "crypto";
 
 export async function registerRoutes(app: Express): Promise<Server> {
-  // Get all messages for a conversation
+  // ✅ Facebook Webhook verification
+  const VERIFY_TOKEN = "aicompanion7508";
+
+  app.get("/webhook", (req, res) => {
+    const mode = req.query["hub.mode"];
+    const token = req.query["hub.verify_token"];
+    const challenge = req.query["hub.challenge"];
+
+    if (mode === "subscribe" && token === VERIFY_TOKEN) {
+      console.log("✅ Webhook verified");
+      return res.status(200).send(challenge);
+    } else {
+      return res.sendStatus(403);
+    }
+  });
+
+  app.post("/webhook", (req, res) => {
+    console.log("📥 Incoming webhook event:", JSON.stringify(req.body, null, 2));
+    res.sendStatus(200);
+  });
+
+  // ✅ Get all messages for a conversation
   app.get("/api/messages", async (req, res) => {
     try {
       const conversationId = await storage.getOrCreateConversationId();
@@ -19,41 +40,31 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Create a new message and get AI response
+  // ✅ Create a new message and get AI response
   app.post("/api/messages", async (req, res) => {
     try {
-      // Add a fallback for conversationId
       if (!req.body.conversationId) {
         req.body.conversationId = crypto.randomUUID();
       }
 
-      // Validate request body
       const messageData = insertMessageSchema.parse(req.body);
-
-      // Store user message
       const userMessage = await storage.createMessage(messageData);
-
-      // Get conversation history for context
       const messageHistory = await storage.getMessages(req.body.conversationId);
 
-      // Format messages for OpenAI
       const openaiMessages = messageHistory.map(msg => ({
         role: msg.role as "user" | "assistant" | "system",
         content: msg.content
       }));
 
       try {
-        // Generate AI response
         const aiResponseContent = await generateChatResponse(openaiMessages);
 
-        // Store AI response
         const aiMessage = await storage.createMessage({
           content: aiResponseContent,
           role: "assistant",
           conversationId: req.body.conversationId
         });
 
-        // Return both messages
         res.status(201).json({
           userMessage,
           aiMessage
@@ -74,7 +85,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Get or create conversation ID
+  // ✅ Get or create conversation ID
   app.get("/api/conversation", async (req, res) => {
     try {
       const conversationId = await storage.getOrCreateConversationId();
