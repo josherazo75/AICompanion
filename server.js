@@ -1,5 +1,7 @@
-const fetch = require("node-fetch");
 const express = require("express");
+const fetch = require("node-fetch");
+const { generateChatResponse } = require("./server/openai");
+
 const app = express();
 const PORT = process.env.PORT || 3000;
 
@@ -7,28 +9,26 @@ const VERIFY_TOKEN = "aicompanion7508";
 
 app.use(express.json());
 
-const { generateChatResponse } = require("./server/openai");
-
-// Webhook verification for Facebook
+// ✅ This handles Facebook’s webhook verification
 app.get("/webhook", (req, res) => {
   const mode = req.query["hub.mode"];
   const token = req.query["hub.verify_token"];
   const challenge = req.query["hub.challenge"];
 
-  if (mode === "subscribe" && token === VERIFY_TOKEN) {
+  if (mode && token === VERIFY_TOKEN) {
     console.log("✅ Webhook verified");
-    return res.status(200).send(challenge);
+    res.status(200).send(challenge);
   } else {
-    return res.sendStatus(403);
+    res.sendStatus(403);
   }
 });
 
-// Handles messages sent by users
-app.post("/webhook", (req, res) => {
+// ✅ This handles incoming messages
+app.post("/webhook", async (req, res) => {
   const body = req.body;
 
   if (body.object === "page") {
-    body.entry.forEach(async (entry) => {
+    for (const entry of body.entry) {
       const event = entry.messaging[0];
       const senderId = event.sender.id;
       const messageText = event.message?.text;
@@ -53,11 +53,10 @@ app.post("/webhook", (req, res) => {
             }
           );
         } catch (err) {
-          console.error("❌ Error generating or sending message:", err.message);
+          console.error("❌ Failed to respond:", err.message);
         }
       }
-    });
-
+    }
     res.sendStatus(200);
   } else {
     res.sendStatus(404);
@@ -65,5 +64,5 @@ app.post("/webhook", (req, res) => {
 });
 
 app.listen(PORT, () => {
-  console.log(`🚀 Webhook server running on port ${PORT}`);
+  console.log(`🚀 Server running on port ${PORT}`);
 });
