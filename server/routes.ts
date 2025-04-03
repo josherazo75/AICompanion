@@ -8,7 +8,7 @@ import crypto from "crypto";
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // ✅ Facebook Webhook verification
-  const VERIFY_TOKEN = "aicompanion7508";
+  const VERIFY_TOKEN = "je_verify_123";
 
   app.get("/webhook", (req, res) => {
     const mode = req.query["hub.mode"];
