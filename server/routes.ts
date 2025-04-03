@@ -5,6 +5,9 @@ import { z } from "zod";
 import { insertMessageSchema } from "@shared/schema";
 import { generateChatResponse } from "./openai";
 import crypto from "crypto";
+import axios from "axios";
+import dotenv from "dotenv";
+dotenv.config();
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // ✅ Facebook Webhook verification
@@ -23,8 +26,32 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/webhook", (req, res) => {
+  // ✅ Messenger auto-reply using Render secret
+  app.post("/webhook", async (req, res) => {
     console.log("📥 Incoming webhook event:", JSON.stringify(req.body, null, 2));
+
+    const messagingEvent = req.body.entry?.[0]?.messaging?.[0];
+    const senderId = messagingEvent?.sender?.id;
+    const messageText = messagingEvent?.message?.text;
+
+    if (senderId && messageText) {
+      try {
+        const PAGE_TOKEN = process.env.PAGE_ACCESS_TOKEN;
+
+        await axios.post(
+          `https://graph.facebook.com/v18.0/me/messages?access_token=${PAGE_TOKEN}`,
+          {
+            recipient: { id: senderId },
+            message: { text: `Hola 👋 Gracias por tu mensaje: "${messageText}"` },
+          }
+        );
+
+        console.log("✅ Reply sent to Facebook user");
+      } catch (err) {
+        console.error("❌ Failed to send message", err?.response?.data || err.message);
+      }
+    }
+
     res.sendStatus(200);
   });
 
