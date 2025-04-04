@@ -3,10 +3,10 @@ import react from '@vitejs/plugin-react';
 import path from 'path';
 
 export default defineConfig({
-  root: 'client', // 👈 Tells Vite where the frontend lives
+  root: 'client',
   plugins: [react()],
   build: {
-    outDir: '../dist/public', // 👈 Output the build to your backend's public folder
+    outDir: '../dist/public', // static files will end up in dist/public
     emptyOutDir: true,
   },
   resolve: {
