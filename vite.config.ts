@@ -3,7 +3,7 @@ import react from "@vitejs/plugin-react";
 import path from "path";
 
 export default defineConfig({
-  root: "client",
+  root: path.resolve(__dirname, "client"), // ✅ updated
   plugins: [react()],
   build: {
     outDir: "../dist/client",
